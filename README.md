@@ -76,8 +76,5 @@ After installation, open Copilot Chat in your project:
 
 - **VS Code** with the **GitHub Copilot** extension (Agent Mode enabled)
 - A host project using **Jest** as the test runner
-- Enzyme tests using `mount` or `shallow` imported directly from the `enzyme` package
 
-```ts
-import { mount } from 'enzyme';
-```
+> **Tested with**: React 16, `@testing-library/react` 11, `@testing-library/user-event` 12, Jest 26.
