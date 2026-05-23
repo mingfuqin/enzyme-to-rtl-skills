@@ -19,50 +19,54 @@ Options:
   --target <dir>            Target project root (default: cwd)
   --skills-path <path>      Where to put skill files  (default: .github/skills)
   --prompts-path <path>     Where to put prompt files (default: .github/prompts)
+  --agents-path <path>      Where to put agent files  (default: .github/agents)
   --copy                    Copy files instead of symlinking
   -y, --yes                 Skip confirmation prompts
 ```
 
-> **Custom paths**: if you use `--skills-path` or `--instructions-path` with non-default values, you must also pass `--copy`. Path-patching (sed) only works on real file copies, not symlinks pointing back to this repo.
+> **Custom paths**: if you use `--skills-path`, `--agents-path`, or `--instructions-path` with non-default values, you must also pass `--copy`. Path-patching (sed) only works on real file copies, not symlinks pointing back to this repo.
 
 # What gets installed
 
 | Destination | Source | What it does |
 |---|---|---|
-| `.github/prompts/*.prompt.md` | `prompts/` | VS Code slash commands |
-| `.github/prompts/enzyme-to-rtl-validate.agent.md` | `prompts/` | Dedicated read-only validation agent mode |
+| `.github/prompts/rtl-init.prompt.md` | `prompts/` | VS Code slash command: `/rtl-init` |
+| `.github/agents/rtl-batch.agent.md` | `prompts/` | Main migration agent |
+| `.github/agents/rtl-migrate.agent.md` | `prompts/` | Single-file migration subagent |
+| `.github/agents/rtl-validate-batch.agent.md` | `prompts/` | Main validation agent |
+| `.github/agents/rtl-validate.agent.md` | `prompts/` | Single-file validation subagent |
 | `.github/skills/enzyme-to-rtl-migration/` | `skills/enzyme-to-rtl-migration/` | Migration skill + shell scripts |
 | `.github/skills/enzyme-to-rtl-migration-validation/` | `skills/enzyme-to-rtl-migration-validation/` | Validation skill |
-| `.github/instructions/` | _(created empty)_ | Where `/init` writes the queue and instruction files |
+| `.github/instructions/` | _(created empty)_ | Where `/rtl-init` writes the queue and instruction files |
 
-> **How VS Code discovers these files**: Prompt files (`.prompt.md`, `.agent.md`) in `.github/prompts/` are auto-discovered by VS Code and become slash commands. Skill files (`SKILL.md`) are **not** auto-loaded — the prompt files reference them explicitly by path. The install script keeps these paths consistent.
+> **How VS Code discovers these files**: Prompt files (`.prompt.md`) in `.github/prompts/` become slash commands. Agent files (`.agent.md`) in `.github/agents/` are available via `@agent-name` in Copilot Chat. Skill files (`SKILL.md`) are **not** auto-loaded — the agent/prompt files reference them explicitly by path.
 
-# Slash commands
+# Commands
 
 After installation, open Copilot Chat in your project:
 
-| Command | What it does |
-|---|---|
-| `/enzyme-to-rtl-init` | Scan the project: library versions, migration status, risk-ordered file queue. Run this first. |
-| `/enzyme-to-rtl-migrate <file>` | Migrate a single Enzyme test file through the full 5-phase workflow (assess → convert → validate). |
-| `/enzyme-to-rtl-migrate-batch` | Migrate files in risk-ordered batches of 3–5, using the queue from `/init`. |
-| `/enzyme-to-rtl-validate <file>` | Run all 5 validation layers on a migrated file and report findings (read-only). |
-| `/enzyme-to-rtl-validate-batch` | Validate all test files changed on this branch vs the default branch. |
+| Command | Type | What it does |
+|---|---|---|
+| `/rtl-init` | slash command | Scan the project: library versions, migration status, risk-ordered file queue. Run this first. |
+| `@rtl-migrate <file>` | agent | Migrate a single Enzyme test file through the full 5-phase workflow (assess → convert → validate). |
+| `@rtl-batch` | agent | Migrate files in risk-ordered batches of 3–5, using the queue from `/rtl-init`. |
+| `@rtl-validate <file>` | agent | Run all 5 validation layers on a migrated file and report findings (read-only). |
+| `@rtl-validate-batch` | agent | Validate all test files changed on this branch vs the default branch. |
 
 # Recommended workflow
 
 ```
-1. /enzyme-to-rtl-init
+1. /rtl-init
    → Generates .github/instructions/enzyme-to-rtl-migration-queue.md
      and .github/instructions/enzyme-to-rtl-migration.instructions.md
 
-2. /enzyme-to-rtl-migrate-batch
+2. @rtl-batch
    → Works through the queue low → medium → high risk,
      running inline validation (Phase 5) after each file
 
-3. /enzyme-to-rtl-validate-batch   (optional, before PR)
+3. @rtl-validate-batch   (optional, before PR)
    → Full 5-layer check on all branch-changed test files
-     or switch to the enzyme-to-rtl-validate agent mode for interactive validation
+     or use @rtl-validate <file> for interactive single-file validation
 ```
 
 # Available skills
@@ -70,7 +74,7 @@ After installation, open Copilot Chat in your project:
 | Skill | File | Purpose |
 |---|---|---|
 | `enzyme-to-rtl-migration` | `skills/enzyme-to-rtl-migration/SKILL.md` | 5-phase migration workflow: assess → convert → validate. Includes selector decision tree, 9 conversion patterns, and inline Phase 5 validation. |
-| `enzyme-to-rtl-migration-validation` | `skills/enzyme-to-rtl-migration-validation/SKILL.md` | Deep 5-layer validation (lint, format, jest, types, Enzyme remnants + assertion-quality gate). Used by the `/validate` prompts and the dedicated agent mode. |
+| `enzyme-to-rtl-migration-validation` | `skills/enzyme-to-rtl-migration-validation/SKILL.md` | Deep 5-layer validation (lint, format, jest, types, Enzyme remnants + assertion-quality gate). Used by `@rtl-validate` and `@rtl-validate-batch`. |
 
 # Requirements
 

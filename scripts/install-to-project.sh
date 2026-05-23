@@ -1,9 +1,8 @@
 #!/bin/bash
 # install-to-project.sh
 #
-# Installs enzyme-to-rtl skills and prompts into a target project so VS Code
-# Copilot slash commands (/enzyme-to-rtl-init, /enzyme-to-rtl-migrate, etc.) work
-# out of the box.
+# Installs enzyme-to-rtl skills, prompts, and agents into a target project so VS Code
+# Copilot can run the migration workflow out of the box.
 #
 # By default creates symlinks so edits in this repo are reflected immediately.
 # Use --copy to copy files instead (required when using custom --skills-path or
@@ -17,8 +16,10 @@
 #                             (default: current working directory)
 #   --skills-path <path>      Where to install skill files, relative to target
 #                             (default: .github/skills)
-#   --prompts-path <path>     Where to install prompt files, relative to target
+#   --prompts-path <path>     Where to install prompt files (.prompt.md), relative to target
 #                             (default: .github/prompts)
+#   --agents-path <path>      Where to install agent files (.agent.md), relative to target
+#                             (default: .github/agents)
 #   --instructions-path <path>  Where generated instruction/queue files will land,
 #                             relative to target (default: .github/instructions)
 #   --copy                    Copy files instead of symlinking
@@ -26,10 +27,11 @@
 #   -h, --help                Show this help message
 #
 # After installation, users start with:
-#   /enzyme-to-rtl-init        — scan the project and build the migration queue
-#   /enzyme-to-rtl-migrate-batch  — migrate files in risk-ordered batches
-#   /enzyme-to-rtl-migrate <file> — migrate a single file
-#   /enzyme-to-rtl-validate <file> — run 5-layer validation on a migrated file
+#   /rtl-init           — prompt: scan the project and build the migration queue
+#   @rtl-batch          — agent:  migrate files in risk-ordered batches
+#   @rtl-migrate <file> — agent:  migrate a single file
+#   @rtl-validate-batch — agent:  validate all changed files
+#   @rtl-validate <file> — agent: run 5-layer validation on a single file
 #
 # Example — symlink into a sibling project (default):
 #   bash scripts/install-to-project.sh --target ../my-project
@@ -47,6 +49,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TARGET_DIR="$(pwd)"
 SKILLS_PATH=".github/skills"
 PROMPTS_PATH=".github/prompts"
+AGENTS_PATH=".github/agents"
 INSTRUCTIONS_PATH=".github/instructions"
 USE_COPY=false
 AUTO_YES=false
@@ -57,6 +60,7 @@ while [[ $# -gt 0 ]]; do
     --target)            TARGET_DIR="$2";        shift 2 ;;
     --skills-path)       SKILLS_PATH="$2";       shift 2 ;;
     --prompts-path)      PROMPTS_PATH="$2";      shift 2 ;;
+    --agents-path)       AGENTS_PATH="$2";       shift 2 ;;
     --instructions-path) INSTRUCTIONS_PATH="$2"; shift 2 ;;
     --copy)              USE_COPY=true;           shift ;;
     -y|--yes)            AUTO_YES=true;           shift ;;
@@ -71,6 +75,7 @@ done
 TARGET_DIR="$(realpath "$TARGET_DIR")"
 DEST_SKILLS="$TARGET_DIR/$SKILLS_PATH"
 DEST_PROMPTS="$TARGET_DIR/$PROMPTS_PATH"
+DEST_AGENTS="$TARGET_DIR/$AGENTS_PATH"
 DEST_INSTRUCTIONS="$TARGET_DIR/$INSTRUCTIONS_PATH"
 
 # ── Validate target ────────────────────────────────────────────────────────────
@@ -81,10 +86,11 @@ fi
 
 # ── Enforce --copy for non-default paths ──────────────────────────────────────
 DEFAULT_SKILLS_PATH=".github/skills"
+DEFAULT_AGENTS_PATH=".github/agents"
 DEFAULT_INSTRUCTIONS_PATH=".github/instructions"
 
 if [[ "$USE_COPY" == false ]] && \
-   [[ "$SKILLS_PATH" != "$DEFAULT_SKILLS_PATH" || "$INSTRUCTIONS_PATH" != "$DEFAULT_INSTRUCTIONS_PATH" ]]; then
+   [[ "$SKILLS_PATH" != "$DEFAULT_SKILLS_PATH" || "$AGENTS_PATH" != "$DEFAULT_AGENTS_PATH" || "$INSTRUCTIONS_PATH" != "$DEFAULT_INSTRUCTIONS_PATH" ]]; then
   echo "Error: --skills-path or --instructions-path is non-default." >&2
   echo "       Path-patching requires --copy (symlinks point back to source)." >&2
   echo "       Re-run with --copy to proceed." >&2
@@ -95,6 +101,7 @@ echo "Installing enzyme-to-rtl skills into: $TARGET_DIR"
 echo "  Mode:        $([ "$USE_COPY" == true ] && echo 'copy' || echo 'symlink')"
 echo "  Skills       → $SKILLS_PATH/"
 echo "  Prompts      → $PROMPTS_PATH/"
+echo "  Agents       → $AGENTS_PATH/"
 echo "  Instructions → $INSTRUCTIONS_PATH/  (generated files land here at runtime)"
 echo ""
 
@@ -164,13 +171,20 @@ for SKILL_NAME in enzyme-to-rtl-migration enzyme-to-rtl-migration-validation; do
   install_item "$SRC" "$DEST" "skills/$SKILL_NAME  →  $SKILLS_PATH/$SKILL_NAME"
 done
 
-# ── Install prompt and agent files ────────────────────────────────────────────
+# ── Install prompt files (.prompt.md) ────────────────────────────────────────
 mkdir -p "$DEST_PROMPTS"
-for SRC in "$REPO_ROOT"/prompts/enzyme-to-rtl-*.prompt.md \
-           "$REPO_ROOT"/prompts/enzyme-to-rtl-*.agent.md; do
+for SRC in "$REPO_ROOT"/prompts/rtl-*.prompt.md; do
   [[ -f "$SRC" ]] || continue
   BASENAME="$(basename "$SRC")"
   install_item "$SRC" "$DEST_PROMPTS/$BASENAME" "prompts/$BASENAME  →  $PROMPTS_PATH/$BASENAME"
+done
+
+# ── Install agent files (.agent.md) ──────────────────────────────────────────
+mkdir -p "$DEST_AGENTS"
+for SRC in "$REPO_ROOT"/prompts/rtl-*.agent.md; do
+  [[ -f "$SRC" ]] || continue
+  BASENAME="$(basename "$SRC")"
+  install_item "$SRC" "$DEST_AGENTS/$BASENAME" "agents/$BASENAME  →  $AGENTS_PATH/$BASENAME"
 done
 
 # ── Create instructions directory (generated files land here) ─────────────────
@@ -179,14 +193,18 @@ echo "  ✓  $INSTRUCTIONS_PATH/  ready (init will write instruction and queue f
 
 # ── Patch path references for non-default paths (copy mode only) ──────────────
 if [[ "$USE_COPY" == true ]] && \
-   [[ "$SKILLS_PATH" != "$DEFAULT_SKILLS_PATH" || "$INSTRUCTIONS_PATH" != "$DEFAULT_INSTRUCTIONS_PATH" ]]; then
+   [[ "$SKILLS_PATH" != "$DEFAULT_SKILLS_PATH" || "$AGENTS_PATH" != "$DEFAULT_AGENTS_PATH" || "$INSTRUCTIONS_PATH" != "$DEFAULT_INSTRUCTIONS_PATH" ]]; then
   echo ""
   echo "Patching path references in copied files..."
 
-  find "$DEST_SKILLS" "$DEST_PROMPTS" -name "*.md" | while read -r FILE; do
+  find "$DEST_SKILLS" "$DEST_PROMPTS" "$DEST_AGENTS" -name "*.md" | while read -r FILE; do
     CHANGED=false
     if [[ "$SKILLS_PATH" != "$DEFAULT_SKILLS_PATH" ]]; then
       sed -i.bak "s|${DEFAULT_SKILLS_PATH}|${SKILLS_PATH}|g" "$FILE"
+      CHANGED=true
+    fi
+    if [[ "$AGENTS_PATH" != "$DEFAULT_AGENTS_PATH" ]]; then
+      sed -i.bak "s|${DEFAULT_AGENTS_PATH}|${AGENTS_PATH}|g" "$FILE"
       CHANGED=true
     fi
     if [[ "$INSTRUCTIONS_PATH" != "$DEFAULT_INSTRUCTIONS_PATH" ]]; then
@@ -206,10 +224,12 @@ echo "Installation complete."
 echo ""
 echo "Next steps:"
 echo "  1. Open VS Code in $TARGET_DIR"
-echo "  2. Run /enzyme-to-rtl-init in Copilot Chat to scan the project and"
+echo "  2. Run /rtl-init in Copilot Chat to scan the project and"
 echo "     generate the risk-ordered migration queue"
-echo "  3. Run /enzyme-to-rtl-migrate-batch to start migrating in batches,"
-echo "     or /enzyme-to-rtl-migrate <file> to migrate one file at a time"
+echo "  3. Run @rtl-batch to start migrating in batches,"
+echo "     or @rtl-migrate <file> to migrate one file at a time"
+echo "  4. Run @rtl-validate-batch to validate all changed files,"
+echo "     or @rtl-validate <file> to validate a single file"
 echo ""
 if [[ "$USE_COPY" == false ]]; then
   echo "Tip: files are symlinked — edits in this repo are reflected immediately."

@@ -19,9 +19,7 @@ INDENT=$(awk '/^[[:space:]]+/ { match($0, /^[[:space:]]+/); print length(substr(
 INDENT=${INDENT:-2}  # default to 2 if no indented line found
 
 npx eslint --fix \
-  --rule "indent: off" \
-  --rule "import/order: [\"warn\", {\"groups\": [\"builtin\",\"external\",\"internal\",\"parent\",\"sibling\",\"index\",\"object\"], \"alphabetize\": {\"order\": \"asc\", \"caseInsensitive\": true}, \"newlines-between\": \"always\"}]" \
-  "$FILE" 2>/dev/null || true
+  --rule "indent: off"  "$FILE" 2>/dev/null || true
 
 npx prettier --write --tab-width "$INDENT" --semi --single-quote --trailing-comma all "$FILE" 2>/dev/null
 

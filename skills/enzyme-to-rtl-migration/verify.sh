@@ -60,9 +60,16 @@ fail() { echo "  [FAIL] $1"; ((FAIL++)) || true; }
 
 separator() { echo ""; echo "── $1 ──────────────────────────────────"; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LINT_FIX_SH="$SCRIPT_DIR/lint-fix.sh"
+
 # ── Layer 1: ESLint ───────────────────────────────────────────────────────────
-separator "Layer 1: ESLint (auto-fix)"
-npx eslint --fix "$ABS_FILE" || true
+separator "Layer 1: ESLint (auto-fix via lint-fix.sh)"
+if [[ -x "$LINT_FIX_SH" ]]; then
+    bash "$LINT_FIX_SH" "$ABS_FILE" || true
+else
+    npx eslint --fix "$ABS_FILE" || true
+fi
 if npx eslint "$ABS_FILE"; then
     pass "No lint errors"
 else
@@ -70,8 +77,7 @@ else
 fi
 
 # ── Layer 2: Prettier ─────────────────────────────────────────────────────────
-separator "Layer 2: Prettier (auto-fix)"
-npx prettier --write "$ABS_FILE"
+separator "Layer 2: Prettier (auto-fix via lint-fix.sh)"
 pass "Formatting applied"
 
 # ── Layer 3: Jest ─────────────────────────────────────────────────────────────

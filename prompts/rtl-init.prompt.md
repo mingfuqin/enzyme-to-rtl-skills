@@ -1,5 +1,5 @@
 ---
-name: enzyme-to-rtl-init
+name: rtl-init
 description: >
   Initialize the Enzyme → RTL migration for this project. Produces a focused snapshot:
   library versions, migration status counts (enzyme-only / mixed / rtl-incomplete / rtl-complete),

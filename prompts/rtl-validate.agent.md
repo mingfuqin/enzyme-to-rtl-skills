@@ -1,5 +1,5 @@
 ---
-name: enzyme-to-rtl-validate
+name: rtl-validate
 description: >
   Dedicated validation agent for Enzyme → RTL migrated test files.
   Runs all 5 validation layers (lint, format, jest, types, enzyme remnants) and
@@ -59,3 +59,7 @@ For every invocation:
 For each ❌: file, line number, exact error, recommended fix, and which agent to return to (`enzyme-to-rtl-migration` for conversion issues, `prettier --write` for formatting).
 
 **Final status**: `PASS` (all ✅) or `NEEDS FIXES` (list failing layers).
+
+## Return to Main Agent
+
+When invoked as a subagent, return only the summary table and final status line — do not re-send file contents or full error traces.

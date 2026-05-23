@@ -1,6 +1,8 @@
 ---
-name: enzyme-to-rtl-migrate-batch
+name: rtl-batch
 description: Process Enzyme-to-RTL migration batches from the migration queue, migrate in chunks of 3–5 files using the single-file migration workflow
+tools: ['runSubagent']
+agents: ['rtl-migrate']
 ---
 
 # Enzyme-to-RTL Batch Migration
@@ -10,7 +12,7 @@ description: Process Enzyme-to-RTL migration batches from the migration queue, m
 Read `.github/instructions/enzyme-to-rtl-migration-queue.md`.
 
 If it does not exist, stop and tell the user:
-> "No migration queue found. Please run `/enzyme-to-rtl-init` first to initialize the project and generate the migration queue."
+> "No migration queue found. Please run `/rtl-init` first to initialize the project and generate the migration queue."
 
 Use the unchecked entries (`- [ ]`) as the work items to process, in the order they appear in the queue.
 
@@ -26,8 +28,8 @@ Present the unchecked files from the queue (grouped by risk tier as written) and
 
 For each chunk:
 
-1. Run the `enzyme-to-rtl-migration` skill (Phases 1–5) on each file in the chunk.
-2. Report only: file path + pass/fail + any errors. Do not re-send full file contents
+1. Invoke `#runSubagent rtl-migrate` for each file in the chunk, passing the file path as the argument.
+2. Collect the summary returned by the subagent: file path + pass/fail + any errors. Do not re-send full file contents
    unless a specific mismatch requires debugging.
 3. After a file passes Phase 5 validation, mark its entry checked (`- [x]`) in the queue file.
 4. After all files in the chunk pass, move to the next chunk.
@@ -46,4 +48,4 @@ Followed by a **Remaining issues** section listing any file that did not reach f
 pass, with the blocking layer and recommended next step.
 
 > To validate already-migrated files (assert quality, Enzyme remnant check, pre-PR), use the
-> `enzyme-to-rtl-validate-batch` prompt instead.
+> `rtl-validate-batch` prompt instead.

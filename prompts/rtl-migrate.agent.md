@@ -1,5 +1,5 @@
 ---
-name: enzyme-to-rtl-migrate
+name: rtl-migrate
 description: Migrate a single Enzyme test file to React Testing Library using the 5-phase workflow
 argument-hint: path to the Enzyme test file (e.g. src/test/containers/Foo.test.js)
 ---
@@ -80,5 +80,14 @@ Checklist:
 If a converted test fails, fix the test harness (providers, fixtures, mocks) **before**
 changing expected behavior. Do not weaken assertions to make tests pass.
 
-> For deeper pre-PR validation (assertion-quality gate, mismatch correction), invoke the
-> `enzyme-to-rtl-validate` prompt.
+> For deeper pre-PR validation (assertion-quality gate, mismatch correction), use `@rtl-validate <file>`.
+
+## Return to Main Agent
+
+Only return the following summary to the calling agent — do not re-send full file contents:
+
+```
+File: <file path>
+Status: pass | fail
+Errors: <error summary, or "none">
+```

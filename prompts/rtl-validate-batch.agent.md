@@ -1,6 +1,8 @@
 ---
-name: enzyme-to-rtl-validate-batch
+name: rtl-validate-batch
 description: Discover test files changed on this branch vs the default branch, then run all 5 validation layers on each and report findings as a summary table
+tools: ['runSubagent']
+agents: ['rtl-validate']
 ---
 
 # Enzyme-to-RTL Batch Validation
@@ -27,7 +29,8 @@ Load `.github/instructions/enzyme-to-rtl-migration.instructions.md` if present; 
 
 ## Step 3: Per-file validation
 
-For each file, apply the same 6 validation layers defined in `enzyme-to-rtl-validate.prompt.md` (Lint, Format, Jest, Types, Enzyme remnants, Assertion quality). Do not apply any fixes.
+For each file, invoke `#runSubagent rtl-validate` with the file path as the argument.
+Collect the structured report returned by the subagent. Do not apply any fixes.
 
 ## Summary report
 
