@@ -196,6 +196,90 @@ Incorporate the user's feedback, then proceed to step 3 once the content is agre
 If the `## Mock Patterns` section already exists in the instruction file, diff it
 against the findings and update any stale entries.
 
+### Step 8: Generate Project-Specific Lint-Fix Script
+
+Gather the exact ESLint and Prettier flags the project uses in CI, then write a
+customized `lint-fix.sh` to `.github/instructions/lint-fix.sh`.
+
+**Do not read** files inside `.agents/skills/` or `.github/skills/` — those are
+skill-level defaults. Read only project-owned sources:
+
+#### 8a — Gather ESLint flags
+
+1. Read `.github/workflows/lintcheck-branch.yml` and extract the `yarn eslint ...`
+   command. Key flags to capture:
+   - `-c <config-path>` — explicit config file (e.g. `.eslintrc.js`)
+   - `--no-eslintrc` — disables config file auto-discovery
+   - `--no-error-on-unmatched-pattern` — silences no-match errors
+   - Any additional `--rule` or `--ext` overrides
+2. Confirm the config file referenced by `-c` exists at the repo root
+   (e.g. `.eslintrc.js`). Note its path relative to the repo root.
+3. Check `bin/run-local-tests.sh` for any extra flags not present in the workflow.
+
+#### 8b — Gather Prettier flags
+
+1. Read `.github/workflows/prettiercheck-branch.yml` and extract the
+   `yarn prettier ...` command. Note that the workflow uses `-c` (check mode);
+   the generated script will use `--write` instead.
+2. Check whether `.prettierrc`, `.prettierrc.json`, `.prettierrc.js`, or
+   `prettier.config.js` exists at the repo root. If a config file exists, no
+   extra formatting flags are needed — Prettier reads it automatically.
+3. If no config file exists, record every explicit flag from the workflow command
+   (e.g. `--single-quote`, `--trailing-comma`, `--tab-width`) to embed in the script.
+
+#### 8c — Write `.github/instructions/lint-fix.sh`
+
+Using the gathered values, write the script with:
+- The exact ESLint flags from CI (with `--fix` added for auto-fix mode).
+- `npx prettier --write "$FILE"` — no extra flags when a `.prettierrc` config file
+  exists; embed explicit flags only if no config file was found.
+- A header comment citing each source file the flags were read from.
+
+**Template** (fill in `<eslint-config-path>` and the prettier flags section):
+
+```bash
+#!/bin/bash
+# lint-fix.sh — Project-specific auto-fix script
+# ESLint flags sourced from: .github/workflows/lintcheck-branch.yml
+# Prettier flags sourced from: .github/workflows/prettiercheck-branch.yml + <.prettierrc path or "none">
+# Usage: ./lint-fix.sh <file-path>
+
+set -e
+
+if [[ -z "$1" ]]; then
+    echo "Usage: $0 <file-path>"
+    exit 1
+fi
+
+FILE="$1"
+[[ -f "$FILE" ]] || { echo "Error: File not found: $FILE"; exit 1; }
+
+# ESLint — flags match lintcheck-branch.yml (auto-fix mode)
+npx eslint -c <eslint-config-path> --no-eslintrc --fix --no-error-on-unmatched-pattern "$FILE" 2>/dev/null || true
+
+# Prettier — respects <.prettierrc path> (matches prettiercheck-branch.yml config)
+# If no project config file: npx prettier --write <flags from workflow> "$FILE"
+npx prettier --write "$FILE" 2>/dev/null
+
+echo "✓ Formatted: $FILE"
+```
+
+**If `.github/instructions/lint-fix.sh` already exists**, diff it against the
+gathered flags and update only lines that diverge from the current CI commands.
+Report which flags changed and why.
+
+After writing the file, make it executable:
+```bash
+chmod +x .github/instructions/lint-fix.sh
+```
+
+Report:
+- Source files read (workflows, scripts, config files).
+- ESLint flags captured and their source.
+- Prettier flags captured and their source (config file or explicit flags).
+- Path written: `.github/instructions/lint-fix.sh`
+- Whether the file was created or updated.
+
 ---
 
 ## Analysis Summary (Manual Fallback Only)
@@ -240,6 +324,11 @@ Total: X files | Remaining work: Y files
 ### Project Instruction File
 <existed | created> — .github/instructions/enzyme-to-rtl-migration.instructions.md
 <any gaps or corrections noted>
+
+### Lint-Fix Script
+<created | updated> — .github/instructions/lint-fix.sh
+ESLint flags: <flags captured from lintcheck-branch.yml>
+Prettier: <"uses .prettierrc" | explicit flags captured>
 
 ### Mock Patterns
 <mock pattern analysis pending — prompt the user with the Step 7 recommendation>

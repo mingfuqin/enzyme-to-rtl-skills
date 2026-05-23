@@ -61,16 +61,22 @@ fail() { echo "  [FAIL] $1"; ((FAIL++)) || true; }
 separator() { echo ""; echo "── $1 ──────────────────────────────────"; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LINT_FIX_SH="$SCRIPT_DIR/lint-fix.sh"
+INSTRUCTIONS_LINT_FIX="$REPO_ROOT/.github/instructions/lint-fix.sh"
+SKILL_LINT_FIX="$SCRIPT_DIR/lint-fix.sh"
+if [[ -x "$INSTRUCTIONS_LINT_FIX" ]]; then
+  LINT_FIX_SH="$INSTRUCTIONS_LINT_FIX"
+else
+  LINT_FIX_SH="$SKILL_LINT_FIX"
+fi
 
 # ── Layer 1: ESLint ───────────────────────────────────────────────────────────
 separator "Layer 1: ESLint (auto-fix via lint-fix.sh)"
 if [[ -x "$LINT_FIX_SH" ]]; then
     bash "$LINT_FIX_SH" "$ABS_FILE" || true
 else
-    npx eslint --fix "$ABS_FILE" || true
+    npx eslint -c .eslintrc.js --no-eslintrc --fix --no-error-on-unmatched-pattern "$ABS_FILE" || true
 fi
-if npx eslint "$ABS_FILE"; then
+if npx eslint -c .eslintrc.js --no-eslintrc --no-error-on-unmatched-pattern "$ABS_FILE"; then
     pass "No lint errors"
 else
     fail "Lint errors remain after auto-fix — manual intervention needed"
