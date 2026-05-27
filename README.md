@@ -81,4 +81,4 @@ After installation, open Copilot Chat in your project:
 - **VS Code** with the **GitHub Copilot** extension (Agent Mode enabled)
 - A host project using **Jest** as the test runner
 
-> **Tested with**: React 16, `@testing-library/react` 11, `@testing-library/user-event` 12, Jest 26.
+> **Tested with**: React 16, `@testing-library/react` 11, `@testing-library/user-event` 12, Jest 26 — built while migrating 227 test files (~8,500 lines added, ~7,000 removed) from Enzyme to RTL.
